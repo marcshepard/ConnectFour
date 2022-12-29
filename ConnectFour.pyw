@@ -5,9 +5,13 @@ GUI derived from https://github.com/Acamol/connect-four
 """
 
 import tkinter as tk
+import tkinter.messagebox as messagebox
 import numpy as np
 import platform
+import random
+from time import sleep
 from Agent import basic_agent, minimax3_agent
+from types import SimpleNamespace
 
 # Double clicking the file or launching from another directory won't work unless we first "cd" to the app directory
 if platform.system() == "Windows":
@@ -37,32 +41,35 @@ IN_A_ROW = config.inarow    # Short-hand
 # GUI color these constants
 BACKGROUND = "blue"
 OUTLINE_COLOR = "black"
-P1_COLOR = "red"
-P2_COLOR = "black"
+PLAYER_COLORS = ["yellow", "red"]
 BLANK_COLOR = "lightgrey"
 
-# A Player. Player number 0 means "no player". Player 1 and 2 are actual players. Each actual player has agent set to None
-# if it's a human, else to an agent callback function
+# Other constants
+OPPONENTS = ["person", "computer",  "computer pro"]
+AGENTS =    [None,     basic_agent, minimax3_agent]
+HELP_TEXT = """Try to make four in a row before your opponent.
+Changing color or opponent will reset any game in progress.
+The current game state (whose turn it is, if the game is over) is at the bottom of the screen.
+When it's your turn, click on the column you want to drop you peice into.
+"""
+
+# A Player. agent callback function is None for human players
 class Player():
-    def __init__ (self, player_num : int, agent : callable):
-        if player_num == 0:
-            self.color = BLANK_COLOR
-        elif player_num == 1:
-            self.color = P1_COLOR
-        elif player_num == 2:
-            self.color = P2_COLOR
-        else:
-            raise ValueError ("player_num must be 0, 1, or 2")
+    def __init__ (self, color : str, agent : callable):
+        self.color = color
         self.agent = agent
-        self.player_num = player_num
+
+    @property
+    def is_computer(self):
+        return self.agent is not None
 
 # Game engine
 class Game():
     def __init__(self, p1_agent, p2_agent):
         self.players = [
-            Player(0, None),        # No player
-            Player(1, p1_agent),    # Player1
-            Player(2, p2_agent),    # Player2
+            Player(BLANK_COLOR, None),              # No player
+            Player(PLAYER_COLORS[0], p1_agent),     # Player1 - yellow
+            Player(PLAYER_COLORS[1], p2_agent),     # Player2 - red
         ]
         self.current_player = 1     # Index of current player; 1 or 2, or 0 if the game is over
         self.winning_player = 0     # If self.current_player == 0, gives result (0 = tie, 1 or 2 if that player won)
@@ -73,47 +80,49 @@ class Game():
         return self.players[self.current_player].color
 
     @property
-    def prev_player_color(self) -> str:
-        return self.players[3 - self.current_player].color
-
-    @property
     def current_player_agent(self) -> callable:
         return self.players[self.current_player].agent
 
     @property
-    def current_player_type(self) -> str:
-        return "you" if self.players[self.current_player].agent is None else "computer"
-
-    @property
-    def is_game_over(self):
+    def is_game_over(self) -> bool:
         return self.current_player == 0
 
     @property
-    def is_tie(self):
+    def is_tie(self) -> bool:
         return self.is_game_over and self.winning_player == 0
+
+    @property
+    def winning_player_color (self) -> str:
+        if not self.is_game_over or self.winning_player == 0:
+            return None
+        return self.players[self.winning_player].color
 
     # Count number of items in a row in a given direction that are the same as the peice in a given row and column
     def num_in_a_row (self, row : int, col : int, row_inc : int, col_inc : int):
         player = self.grid[row, col]
         num = 0
-        while row + row_inc < ROWS and col + col_inc < COLS and self.grid[row + row_inc, col + col_inc] == player:
-            num += 1
+        while 0 <= row + row_inc < ROWS and 0 <= col + col_inc < COLS and self.grid[row + row_inc, col + col_inc] == player:
             row += row_inc
             col += col_inc
+        num = 1
+        while 0 <= row - row_inc < ROWS and 0 <= col - col_inc < COLS and self.grid[row - row_inc, col - col_inc] == player:
+            row -= row_inc
+            col -= col_inc
+            num += 1
         return num
 
     # Check if the move at given row, col was a winning move
     def check_winning_move(self, row : int, col : int) -> bool:
         # horizontal
-        if self.num_in_a_row(row, col, 1, 0) + self.num_in_a_row(row, col, -1, 0) > IN_A_ROW - 1:
+        if self.num_in_a_row(row, col, 1, 0) >= IN_A_ROW:
             return True
         # vertical
-        if self.num_in_a_row(row, col, 0, 1) + self.num_in_a_row(row, col, 0, -1) > IN_A_ROW - 1:
+        if self.num_in_a_row(row, col, 0, 1) >= IN_A_ROW:
             return True
         # diagnal
-        if self.num_in_a_row(row, col, 1, 1) + self.num_in_a_row(row, col, -1, -1) > IN_A_ROW - 1:
+        if self.num_in_a_row(row, col, 1, 1) >= IN_A_ROW:
             return True
-        if self.num_in_a_row(row, col, 1, -1) + self.num_in_a_row(row, col, -1, 1) > IN_A_ROW - 1:
+        if self.num_in_a_row(row, col, 1, -1) >= IN_A_ROW:
             return True
         return False 
 
@@ -153,24 +162,53 @@ class GameScreen(tk.Tk):
         # TODO - self.iconbitmap(default='logo.ico')
         self.title("Connect Four")
 
-        # Buttons at the top
-        new_game_btn = tk.Button (self, text="New game", command=lambda : self.on_help_click())
-        opponent_btn = tk.Button (self, text="Computer Opponent - easy", command=lambda : self.on_opponent_click())
-        help_btn = tk.Button (self, text="Help", command=lambda : self.on_opponent_click())
-        new_game_btn.grid(row=0, column=0)
-        opponent_btn.grid(row=0, column=1)
-        help_btn.grid(row=0, column=2)
+        # Create buttons at the top
+        tk.Label(self, text="Your color:").grid (row=0, column=0, padx=(10, 0))
+        self.color_select_btn = tk.Button (self, text=PLAYER_COLORS[0], width = 7, command=lambda : self.on_color_select_click())
+        self.color_select_btn.grid(row=0, column=1, padx=(0, 10))
 
-        # Main canvas for the game board
+        tk.Label(self, text="Your opponent:").grid (row=0, column=2, padx=(10, 0))
+        self.opponent_select_btn = tk.Button (self, text=OPPONENTS[1], width = 13, command=lambda : self.on_opponent_select_click())
+        self.opponent_select_btn.grid(row=0, column=3, padx=(0, 10))
+
+        help_btn = tk.Button (self, text="Help", command=lambda : self.on_help_click())
+        help_btn.grid(row=0, column=4)
+
+        # Main canvas for the game board in the middle
         canvas = tk.Canvas(self, bg=BACKGROUND)
         self.create_board(canvas)
-        canvas.grid(row=1, column=0, columnspan=3)
-
+        canvas.grid(row=1, column=0, columnspan=5)
+        
         # Game state info at the bottom
-        #self.game = Game(None, basic_agent)
-        self.game = Game(None, None)
-        self.game_state_label = tk.Label(self, text="It's " + self.game.current_player_color + "'s turn (" + self.game.current_player_type + ")")
-        self.game_state_label.grid(row=2, column=0, columnspan=3)
+        self.game_state_label = tk.Label(self, text="")
+        self.game_state_label.grid(row=2, column=0, columnspan=5, padx=2, pady=5)
+
+        # Window shouldn't be resizable, since widgets are not
+        self.resizable(False, False)
+
+        # And finally, start a game
+        self.new_game()
+    
+    def new_game (self):
+        # Reset the Canvas to no pieces are played
+        for row in range (ROWS):
+            for col in range (COLS):
+                id = self.buttons[row, col]
+                self.board[row, col].itemconfig(id, fill=BLANK_COLOR)
+
+        # Create a new game against the selected opponent, giving user their selected color, and randomize who goes first
+        agent_ix = OPPONENTS.index(self.opponent_select_btn["text"])
+        agent = AGENTS[agent_ix]
+        if self.color_select_btn["text"] == PLAYER_COLORS[1]:
+            self.game = Game(agent, None)
+        else:
+            self.game = Game(None, agent)
+
+        # Set who goes first - if it's the computer, have them move
+        self.game.current_player = random.randint(1, 2)
+        self.game_state_label["text"] = "New game: " + self.game.current_player_color + " goes first"
+        if self.game.current_player_agent is not None:
+            col = self.make_computer_move()
 
     # Create an empty board with circle shapes for discs - originally all grey (for no play)
     def create_board (self, canvas):
@@ -194,68 +232,76 @@ class GameScreen(tk.Tk):
                 canvas_tile.bind('<Button-1>', lambda e, id=id, col=col: self.on_canvas_click(e, id, col))
 
     def on_help_click(self):
-        pass
+        messagebox.showinfo("Help",  HELP_TEXT, icon="question")
     
-    def on_new_game_click(self):
-        pass
+    # Clicking on color_select rotates the button name through the PLAYER_COLORS options
+    def on_color_select_click(self):
+        color_ix = PLAYER_COLORS.index(self.color_select_btn["text"])
+        self.color_select_btn["text"] = PLAYER_COLORS[(color_ix + 1) % len(PLAYER_COLORS)]
+        self.new_game()
 
-    def on_opponent_click(self):
-        pass
+    # Clicking on oponent_select rotates the button name through the OPPONENTS options
+    def on_opponent_select_click(self):
+        opponent_ix = OPPONENTS.index(self.opponent_select_btn["text"])
+        self.opponent_select_btn["text"] = OPPONENTS[(opponent_ix + 1) % len(OPPONENTS)]
+        self.new_game()
 
-    # Column j was clicked. Make the move
+    # This function has the current player place a tile in col and updates everything
+    # Returns true of false depending on if the move was succesful
+    def place_tile (self, col) -> bool:
+        # Make the move and reflect it on the board
+        player_color = self.game.current_player_color
+        is_computer = self.game.current_player_agent is not None
+        row = self.game.move(col)
+        if row == -1:   # If they made an invalid move, ignore the click
+            return False
+        self.board[row, col].itemconfig(self.buttons[row, col], fill=player_color)
+
+        # If the computer made the move, flash the tile to bring attention to the placement
+        if is_computer:
+            self.after (100, lambda : self.board[row, col].itemconfig(self.buttons[row, col], fill=BLANK_COLOR))
+            self.after (200, lambda : self.board[row, col].itemconfig(self.buttons[row, col], fill=player_color))
+
+        # Update the game state text
+        if self.game.is_game_over:
+            if self.game.is_tie:
+                self.game_state_label["text"] = "Game over - it's a tie!"
+            else:
+                self.game_state_label["text"] = "Game over - " + self.game.winning_player_color + " wins!"
+        else:
+            self.game_state_label["text"] = "It's " + self.game.current_player_color + "'s turn"
+        return True
+
+
+    # Column col was clicked. Make the move
     def on_canvas_click(self, event, id, col):
-        print ("Column = ", col)
-        print (self.game.grid)
         # If it is the agents turn, ignore the click
         if self.game.current_player_agent is not None:
             return
 
-        # Make the move and reflect it on the board
-        row = self.game.move(col)
-        if row == -1:   # If they made an invalid move, ignore the click
-            return
-        self.board[row, col].itemconfig(id, fill=self.game.prev_player_color)
+        # If it's a persons turn, make the move and reflect it on the board
+        if not self.place_tile (col):
+            return      # If invalid move, return
 
-        # Check if the game is over
-        if self.game.is_game_over:
-            self.game_state_label = "Game over"
-            return
+        # If the persons opponent is a computer agent, have them play
+        if not self.game.is_game_over and self.game.current_player_agent is not None:
+            col = self.make_computer_move()
+            
 
-        # Set game state to show it is the next players turn
-        self.game_state_label["text"] = "It's " + self.game.current_player_color + "'s turn (" + self.game.current_player_type + ")"
+    # Get the computers move
+    def make_computer_move (self) -> int:
+        agent = self.game.current_player_agent
+        assert agent is not None, "Trying to get computers move, but it's not the computers turn"
 
+        # Get the agents move, after converting parameters to format in Agent.py
+        obs = SimpleNamespace()
+        obs.mark = self.game.current_player
+        obs.board = self.game.grid.flatten().tolist()
+        col = agent (obs, config)
 
-        """
-        self.text1.config(text="Round {}".format(self.game.round))
-        self.text2.config(text="{}'s turn".format(next_player_color))
-        if self.game.winner in ["X", "Y"]:
-            self.text3.config(text="{} has won!".format(player_color))
-            self.text2.config(text="The End")
-            for i, j in IT.product(range(self._rows), range(self._cols)):
-                self.board[i][j].unbind("<Button-1>")
-            self.flash_discs(
-                self.game.get_winning_discs(),
-                "red" if self.game.winner == 'X' else "yellow",
-                "blue")
-
-        if self.game.winner == 'D':
-            self.text1.config(text="Round 42")
-            self.text2.config(text="The End")
-            self.text3.config(text="Draw")
-            for i, j in IT.product(range(self._rows), range(self._cols)):
-                self.board[i][j].unbind("<Button-1>")
-        """
-
-    def flash_discs(self, discs, winner, altcolor):
-        """Alternate color of given discs"""
-        for disc in discs:
-            row = disc[0]
-            col = disc[1]
-            self.board[row][col].itemconfig(
-                self.buttons[row][col], fill=altcolor)
-
-        self.after(250, self.flash_discs, discs, altcolor, winner)
-
+        # Make the move after a slight delay so the computer appears to be thinking
+        player_color = self.game.current_player_color
+        self.after (500, lambda : self.place_tile(col))
 
 root = GameScreen()
 root.mainloop()
