@@ -10,7 +10,6 @@ It consists of the following files:
 Running this program requires Python (I've only tested with Python 3.11) as well as the following packages:
 * numpy
 * kaggle_environments
-
 Note: this will eventually also require these packages for an ML agent (which uses stable-baselines3 for reinforced learning):
 * pandas
 * gym
@@ -19,6 +18,10 @@ Note: this will eventually also require these packages for an ML agent (which us
 However I've not yet added that agent because I'm using Python 3.11 and torch doesn't yet run on 3.11 (nor does tensorflow, BTW).
 These should be coming soon, so I'll wait rather than downgrade my python kaggle_environments
 
+Callout to:
+* Noah Fang - for the idea and I used his code to check for n-in-a-row
+* Kaggle - the playing agents were derived from https://www.kaggle.com/learn/intro-to-game-ai-and-reinforcement-learning
+* Acamol - the ConnectFourBoard control was derived from code in https://github.com/Acamol/connect-four
 
 
 

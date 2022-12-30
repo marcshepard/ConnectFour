@@ -1,7 +1,7 @@
 """
 ConnectFour.pyw - a game of connect four
 
-GUI derived from https://github.com/Acamol/connect-four
+The ConnectFourBoard Class was derived from the work at https://github.com/Acamol/connect-four
 """
 
 import tkinter as tk
@@ -155,11 +155,45 @@ class Game():
         self.current_player = 3 - self.current_player   # 2->1, 1->2
         return row
 
+# ConnectFourBoard - main control of the GUI
+# Provides a 6x7 canvas round peices in a given background color
+# Provides an API to set the peice at a given (row, col) to a given color
+# on_click callback allows user to find out when a column is clicked
+class ConnectFourBoard(tk.Canvas):
+    def __init__ (self, on_click : callable, rows=ROWS, cols=COLS, tile_size = 60, fill_color=BLANK_COLOR, bg_color=BACKGROUND):
+        super().__init__(bg = bg_color)
+        self.fill_color = fill_color
+        self.board = np.empty([rows, cols], dtype=tk.Canvas)
+        self.peice_ids = np.zeros([rows, cols], dtype=int)
+        self.on_click = on_click
+        peice_size = tile_size * 5 // 6     # Each tile has a circle representing whatever peices is in that tile
+        for row in range (rows):
+            for col in range (cols):
+                canvas_tile = tk.Canvas(self, bg=bg_color, height=tile_size, width=tile_size, relief="raised", highlightthickness=0)
+                self.board[row, col] = canvas_tile
+                padding = 2
+                id = canvas_tile.create_oval((padding, padding, peice_size + padding, peice_size + padding), outline=OUTLINE_COLOR, fill=fill_color)
+                self.board[row, col] = canvas_tile
+                self.peice_ids[row, col] = id
+                canvas_tile.grid(row=row, column=col, padx=5, pady=5)
+                canvas_tile.bind('<Button-1>', lambda e, col=col : on_click (col))
+
+    # Set the color of the peice at the given row and column
+    def set_color (self, row : int, col : int, color : str):
+        self.board[row, col].itemconfig(self.peice_ids[row, col], fill=color)
+
+    # Reset the board for a new game
+    def reset (self):
+        for row in range (self.board.shape[0]):
+            for col in range (self.board.shape[1]):
+                id = self.peice_ids[row, col]
+                self.board[row, col].itemconfig(id, fill=self.fill_color)
+
 # Game GUI
 class GameScreen(tk.Tk):
     def __init__(self):
         super().__init__()
-        # TODO - self.iconbitmap(default='logo.ico')
+        self.iconbitmap(default='ConnectFour.ico')
         self.title("Connect Four")
 
         # Create buttons at the top
@@ -175,9 +209,8 @@ class GameScreen(tk.Tk):
         help_btn.grid(row=0, column=4)
 
         # Main canvas for the game board in the middle
-        canvas = tk.Canvas(self, bg=BACKGROUND)
-        self.create_board(canvas)
-        canvas.grid(row=1, column=0, columnspan=5)
+        self.board = ConnectFourBoard (self.on_board_clicked)
+        self.board.grid(row=1, column=0, columnspan=5)
         
         # Game state info at the bottom
         self.game_state_label = tk.Label(self, text="")
@@ -191,10 +224,7 @@ class GameScreen(tk.Tk):
     
     def new_game (self):
         # Reset the Canvas to no pieces are played
-        for row in range (ROWS):
-            for col in range (COLS):
-                id = self.buttons[row, col]
-                self.board[row, col].itemconfig(id, fill=BLANK_COLOR)
+        self.board.reset()
 
         # Create a new game against the selected opponent, giving user their selected color, and randomize who goes first
         agent_ix = OPPONENTS.index(self.opponent_select_btn["text"])
@@ -209,27 +239,6 @@ class GameScreen(tk.Tk):
         self.game_state_label["text"] = "New game: " + self.game.current_player_color + " goes first"
         if self.game.current_player_agent is not None:
             col = self.make_computer_move()
-
-    # Create an empty board with circle shapes for discs - originally all grey (for no play)
-    def create_board (self, canvas):
-        self.board = np.empty([ROWS, COLS], dtype=tk.Canvas)
-        self.buttons = np.zeros([ROWS, COLS], dtype=int)
-        for row in range (ROWS):
-            for col in range (COLS):
-                canvas_tile = tk.Canvas(canvas, bg=BACKGROUND, height=60, width=60, relief="raised", highlightthickness=0)
-                self.board[row, col] = canvas_tile
-                padding = 2
-                id = canvas_tile.create_oval((padding, padding, 50 + padding, 50 + padding), outline=OUTLINE_COLOR, fill=BLANK_COLOR)
-                canvas_tile.configure(width=canvas_tile.winfo_reqwidth(), height=canvas_tile.winfo_reqheight())
-
-                self.board[row, col] = canvas_tile
-                self.buttons[row, col] = id
-
-                canvas.rowconfigure(row, weight=1)
-                canvas.columnconfigure(col, weight=1)
-
-                canvas_tile.grid(row=row, column=col, padx=3, pady=3, sticky=tk.E + tk.W + tk.N + tk.S)
-                canvas_tile.bind('<Button-1>', lambda e, id=id, col=col: self.on_canvas_click(e, id, col))
 
     def on_help_click(self):
         messagebox.showinfo("Help",  HELP_TEXT, icon="question")
@@ -255,12 +264,12 @@ class GameScreen(tk.Tk):
         row = self.game.move(col)
         if row == -1:   # If they made an invalid move, ignore the click
             return False
-        self.board[row, col].itemconfig(self.buttons[row, col], fill=player_color)
+        self.board.set_color (row, col, player_color)
 
         # If the computer made the move, flash the tile to bring attention to the placement
         if is_computer:
-            self.after (100, lambda : self.board[row, col].itemconfig(self.buttons[row, col], fill=BLANK_COLOR))
-            self.after (200, lambda : self.board[row, col].itemconfig(self.buttons[row, col], fill=player_color))
+            self.after (100, lambda : self.board.set_color(row, col, BLANK_COLOR))
+            self.after (100, lambda : self.board.set_color(row, col, player_color))
 
         # Update the game state text
         if self.game.is_game_over:
@@ -274,7 +283,8 @@ class GameScreen(tk.Tk):
 
 
     # Column col was clicked. Make the move
-    def on_canvas_click(self, event, id, col):
+    #def on_canvas_click(self, event, id, col):
+    def on_board_clicked(self, col):
         # If it is the agents turn, ignore the click
         if self.game.current_player_agent is not None:
             return
