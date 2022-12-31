@@ -22,6 +22,14 @@ Note: this app will eventually also require these packages for an ML agent (whic
 However I've not yet added that agent because I'm using Python 3.11 and torch doesn't yet run on 3.11 (nor does tensorflow, BTW).
 These should be coming soon, so I'll wait rather than downgrade my python kaggle_environments
 
+Note on agents:
+* Basic agent - wins close to 100% of the time against random agent
+* Minimax_agent - wins about 75% of the time against basic agent (half wins, half ties), and 100% against random agent
+* rl_agent trained against basic agent w 50k training cycles - wins 70% of the time against random agent (and loses 30%), and less than 50% against basic_agent, 0% vs minimax agent
+* rl_agent trained against random agent slightly worse (not by much)
+Conclusion: rl not ideal for this type of play
+Note: rl conclusions based on code running in my kaggle environment, since I've not got it ported over here yet to to Python version issues
+
 Callout to:
 * Noah Fang - for the idea and I also used his idea for how to check for n-in-a-row
 * Kaggle - the playing agents were derived from https://www.kaggle.com/learn/intro-to-game-ai-and-reinforcement-learning

@@ -31,4 +31,4 @@ def get_win_percentages(agent1, agent2, n_rounds=100):
 # Test the agents against each other - feel free to modify this as needed to play with things
 # Note, one can use built-in "random" to run against an agent that makes random moves
 env = make("connectx", debug=True)
-get_win_percentages(basic_agent, minimax3_agent, 10)
+get_win_percentages("random", minimax3_agent, 20)
