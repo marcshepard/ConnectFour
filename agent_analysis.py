@@ -39,3 +39,13 @@ env = make("connectx", debug=True)
 get_win_percentages("random", minimax3_agent, 20)
 get_win_percentages("random", basic_agent, 20)
 get_win_percentages(basic_agent, minimax3_agent, 20)
+
+"""
+To test the rl_agent, you first need to train it
+import rl_agent
+rl_train(10000, "random") - bootstrap training against the random agent
+rl_train(10000, basic_agent) - can incrementally train against one of the non-rl agents
+rl_train(10000, rl_train) - can incrmentally train the agent against it's previous version
+Etc...
+After each increment, test it out to see how it's doing
+"""
