@@ -308,13 +308,13 @@ class GameScreen(tk.Tk):
         if not self.place_tile (col):
             return      # If invalid move, return
 
-        # If the persons opponent is a computer agent, have them play
+        # If the persons opponent is a computer agent, have them play (after slight delay so computer appears to be thinking)
         if not self.game.is_game_over and self.game.is_computers_turn:
-            col = self.make_computer_move()
+            self.after (500, lambda : self.make_computer_move())
             
 
     # Get the computers move
-    def make_computer_move (self) -> int:
+    def make_computer_move (self):
         agent = self.game.current_player_agent
         assert agent is not None, "Trying to get computers move, but it's not the computers turn"
 
@@ -324,8 +324,8 @@ class GameScreen(tk.Tk):
         obs.board = self.game.grid.flatten().tolist()
         col = agent (obs, config)
 
-        # Make the move after a slight delay so the computer appears to be thinking
-        self.after (500, lambda : self.place_tile(col))
+        # Then update the GUI
+        self.place_tile(col)
 
 root = GameScreen()
 root.mainloop()

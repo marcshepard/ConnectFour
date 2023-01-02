@@ -214,7 +214,7 @@ def py_ver_ok():
 
 model_data = "sb3_model_data"   # It takes forever to train an sb3 model, so need a place to save it when done
 
-if py_ver_ok():
+if False and py_ver_ok():
     import gym
     from gym import spaces
     import torch as th
