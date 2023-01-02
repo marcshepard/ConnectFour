@@ -31,10 +31,11 @@ def drop_piece (grid : list, col : int, piece : int, config : SimpleNamespace) -
     next_grid[row][col] = piece
     return next_grid
 
-def check_winning_move(obs : SimpleNamespace, config : SimpleNamespace, col :
+def check_winning_move(obs : SimpleNamespace, config : SimpleNamespace, column :
         int, piece : int) -> bool:
     '''Returns True if dropping piece in column results in game win'''
     # Convert the board to a 2D grid
+    col = column
     grid = np.asarray(obs.board).reshape(config.rows, config.columns)
     next_grid = drop_piece(grid, col, piece, config)
     # horizontal
@@ -136,7 +137,7 @@ def minimax3_agent(obs : SimpleNamespace, config : SimpleNamespace) -> int:
         return window.count(1) == config.inarow or window.count(2) == config.inarow
 
     # Helper function for minimax: checks if game has ended
-    def is_terminal_node(grid, config):
+    def is_terminal_node(grid, config): # pylint: disable=too-many-branches
         # Check for draw
         if list(grid[0, :]).count(0) == 0:
             return True

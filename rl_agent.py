@@ -6,17 +6,14 @@ Requires pandas, torch, gym, stable_baselines3 (aka sb3) - which don't work on P
 
 from sys import version_info
 import random
-import numpy as np
 from os.path import exists
-import pandas as pd
+import numpy as np
 import gym
-
 from kaggle_environments import make
 from gym import spaces
-
 import torch as th
-import torch.nn as nn
-from stable_baselines3 import PPO 
+from torch import nn
+from stable_baselines3 import PPO
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 
 def py_ver_ok() -> bool:
@@ -33,7 +30,7 @@ class ConnectFourGym(gym.Env):  # pylint: disable=too-many-instance-attributes
         self.columns = ks_env.configuration.columns
         # Learn about spaces here: http://gym.openai.com/docs/#spaces
         self.action_space = spaces.Discrete(self.columns)
-        self.observation_space = spaces.Box(low=0, high=2, 
+        self.observation_space = spaces.Box(low=0, high=2,
                                             shape=(1,self.rows,self.columns), dtype=int)
         # Tuple corresponding to the min and max possible rewards
         self.reward_range = (-10, 1)
@@ -50,10 +47,9 @@ class ConnectFourGym(gym.Env):  # pylint: disable=too-many-instance-attributes
         """Change the reward"""
         if old_reward == 1: # The agent won the game
             return 1
-        elif done: # The opponent won the game
+        if done: # The opponent won the game
             return -1
-        else: # Reward 1/42
-            return 1/(self.rows*self.columns)
+        return 1/(self.rows*self.columns)
     def step(self, action):
         """Check if agent's move is valid"""
         is_valid = (self.obs['board'][int(action)] == 0)
@@ -112,10 +108,11 @@ def rl_agent(obs, config):
     """Add interface for the trained agent"""
     global rl_model # pylint: disable=invalid-name, global-statement
     if rl_model is None:
-        env = ConnectFourGym()
-        rl_model = PPO.load (MODEL_DATA_FILE, env=env)
+        rl_model = PPO.load (MODEL_DATA_FILE)
+
     # Use the best model to select a column
     col, _ = rl_model.predict(np.array(obs.board).reshape(1, 6,7))
+    
     # If valid move, make it. Else pick a random valid move
     if obs.board[int(col)] == 0:
         return int(col)

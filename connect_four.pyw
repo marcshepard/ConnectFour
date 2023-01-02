@@ -192,8 +192,8 @@ class ConnectFourBoard(tk.Canvas):  # pylint: disable=too-many-ancestors
         """Reset the board for a new game"""
         for row in range (self.board.shape[0]):
             for col in range (self.board.shape[1]):
-                id = self.peice_ids[row, col]
-                self.board[row, col].itemconfig(id, fill=self.fill_color)
+                peice_id = self.peice_ids[row, col]
+                self.board[row, col].itemconfig(peice_id, fill=self.fill_color)
 
 # Game GUI
 class GameScreen(tk.Tk):

@@ -4,7 +4,19 @@ agent_analysis.py - code that can be tweaked to test the agents
 What I've learned:
 * Basic agent is *much* stronger if it makes the center-most valid move of moves with equal scores
 * (3-level) Minimax agent is much stronger than the basic agent
-* RL (reinforced learning) agent is not very strong after 50k training sessions
+* RL (reinforced learning) agent is not very strong after 50k training sessions, it beats random
+  agent only 85% of the time
+
+To test the rl_agent, you first need to train it
+import rl_agent
+rl_train(50000, "random") - bootstrap training against the random agent
+rl_train(50000, basic_agent) - can incrementally train against one of the non-rl agents
+rl_train(50000, rl_train) - TODO - this doesn't seem to work yet (training against itself)
+Etc...
+After each increment, test it out to see how it's doing
+
+So far results are abysmal (50k iterations against random only beats random 80% of
+the time), so I'm putting this on hold
 """
 
 import numpy as np
@@ -14,6 +26,8 @@ from agent import basic_agent, minimax3_agent
 def battle(agent1, agent2):
     """battle - pits two agents against for a single game and shows move-by-move GUI
     Useful for debugging new agents (e.g, "battle(agent, 'random')"")"""
+
+    # env = make("connectx", debug=True)
     env.run([agent1, agent2])
     env.render(mode="ipython")
 
@@ -45,15 +59,3 @@ get_win_percentages("random", minimax3_agent, 20)
 
 print ("\nBasic agent vs minimax3")
 get_win_percentages(basic_agent, minimax3_agent, 20)
-
-"""
-To test the rl_agent, you first need to train it
-import rl_agent
-rl_train(10000, "random") - bootstrap training against the random agent
-rl_train(10000, basic_agent) - can incrementally train against one of the non-rl agents
-rl_train(10000, rl_train) - can incrmentally train the agent against it's previous version
-Etc...
-After each increment, test it out to see how it's doing
-
-So far results are abysmal, so I'm putting this on hold
-"""
