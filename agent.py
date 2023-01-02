@@ -3,8 +3,10 @@ Creates connect four agents using techniques from kaggle/learn
 Specifically https://www.kaggle.com/learn/intro-to-game-ai-and-reinforcement-learning
 * Basic agent - plays a winning or blocking move if available, else center-most valid move
 * Minimax agent - three play look ahead
-A third agent will coming, hopefully soon, once torch is ported to Python 3.11):
-* ML agent - no upfront rules - learns by playing against other agents
+* A third agent using reenforced learning (no pre-defined rules) is in rl_agent.py
+  It's training time is huge, it's performance sucks, and it requires a ton of additional
+  libraries, some of which don't yet run on Python 11 (what I'm using), so I've put development
+  of that agent on hold for now.
 
 Each agent is a method that takes two parameters, obs and config, that contain the following info:
   obs.mark: the peice assigned to the agent (either 1 or 2)

@@ -36,8 +36,14 @@ def get_win_percentages(agent1, agent2, n_rounds=100):
 # Test the agents against each other - feel free to modify this as needed to play with things
 # Note, one can use built-in "random" to run against an agent that makes random moves
 env = make("connectx", debug=True)
-get_win_percentages("random", minimax3_agent, 20)
+
+print ("Random agent vs basic agent")
 get_win_percentages("random", basic_agent, 20)
+
+print ("\nRandom agent vs minimax3")
+get_win_percentages("random", minimax3_agent, 20)
+
+print ("\nBasic agent vs minimax3")
 get_win_percentages(basic_agent, minimax3_agent, 20)
 
 """
@@ -48,4 +54,6 @@ rl_train(10000, basic_agent) - can incrementally train against one of the non-rl
 rl_train(10000, rl_train) - can incrmentally train the agent against it's previous version
 Etc...
 After each increment, test it out to see how it's doing
+
+So far results are abysmal, so I'm putting this on hold
 """
