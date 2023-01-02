@@ -1,7 +1,6 @@
 """
-This file creates connect four agent using techniques learned in https://www.kaggle.com/learn/intro-to-game-ai-and-reinforcement-learning
-
-There are two agents:
+Creates connect four agents using techniques from kaggle/learn
+Specifically https://www.kaggle.com/learn/intro-to-game-ai-and-reinforcement-learning
 * Basic agent - plays a winning or blocking move if available, else center-most valid move
 * Minimax agent - three play look ahead
 A third agent will coming, hopefully soon, once torch is ported to Python 3.11):
@@ -9,64 +8,64 @@ A third agent will coming, hopefully soon, once torch is ported to Python 3.11):
 
 Each agent is a method that takes two parameters, obs and config, that contain the following info:
   obs.mark: the peice assigned to the agent (either 1 or 2)
-  obs.board: 42 (=6x7) numpy array representing the connect 4 grid in row-major order, each element is 0 (no play) 1 or 2 (played)
+  obs.board: 42 (=6x7) numpy array in row-major order, each element is 0 (no play) 1 or 2 (played)
   config.columns: 7 - number of columns in a connect 4 game
   config.rows: 6 - number of rows
   config.inarow: 4 - number in a row needed to win
-This interface is used in the kaggle class, and also enables us to use their pre-built kaggle_environments methods for letting the
-agents battle it out, so I'm using it here too
+This interface is used in the kaggle class and competition, and enables us to use their pre-built
+kaggle_environments methods for letting the agents battle it out, so I'm using it here too
 """
 
+from types import SimpleNamespace
 import numpy as np
-from kaggle_environments import evaluate, make
 
-# The basic agent does a winning move (if it exists), else a blocking move (if it exists), else the center-most valid move
-# Note: playing the center-most valid move produces a *substantially better* agent, so I added that to what was in the class
-def basic_agent(obs, config):
-    # Gets board at next step if agent drops piece in selected column
-    def drop_piece(grid, col, piece, config):
-        next_grid = grid.copy()
-        for row in range(config.rows-1, -1, -1):
-            if next_grid[row][col] == 0:
-                break
-        next_grid[row][col] = piece
-        return next_grid
+# Support methods
+def drop_piece (grid : list, col : int, piece : int, config : SimpleNamespace) -> list:
+    '''Returns the new grid resulting from dropping piece in column col'''
+    next_grid = grid.copy()
+    for row in range(config.rows-1, -1, -1):
+        if next_grid[row][col] == 0:
+            break
+    next_grid[row][col] = piece
+    return next_grid
 
-    # Returns True if dropping piece in column results in game win
-    def check_winning_move(obs, config, col, piece):
-        # Convert the board to a 2D grid
-        grid = np.asarray(obs.board).reshape(config.rows, config.columns)
-        next_grid = drop_piece(grid, col, piece, config)
-        # horizontal
-        for row in range(config.rows):
-            for col in range(config.columns-(config.inarow-1)):
-                window = list(next_grid[row,col:col+config.inarow])
-                if window.count(piece) == config.inarow:
-                    return True
-        # vertical
-        for row in range(config.rows-(config.inarow-1)):
-            for col in range(config.columns):
-                window = list(next_grid[row:row+config.inarow,col])
-                if window.count(piece) == config.inarow:
-                    return True
-        # positive diagonal
-        for row in range(config.rows-(config.inarow-1)):
-            for col in range(config.columns-(config.inarow-1)):
-                window = list(next_grid[range(row, row+config.inarow), range(col, col+config.inarow)])
-                if window.count(piece) == config.inarow:
-                    return True
-        # negative diagonal
-        for row in range(config.inarow-1, config.rows):
-            for col in range(config.columns-(config.inarow-1)):
-                window = list(next_grid[range(row, row-config.inarow, -1), range(col, col+config.inarow)])
-                if window.count(piece) == config.inarow:
-                    return True
-        return False
-    
-    #########################
-    # Agent makes selection #
-    #########################
-    
+def check_winning_move(obs : SimpleNamespace, config : SimpleNamespace, col :
+        int, piece : int) -> bool:
+    '''Returns True if dropping piece in column results in game win'''
+    # Convert the board to a 2D grid
+    grid = np.asarray(obs.board).reshape(config.rows, config.columns)
+    next_grid = drop_piece(grid, col, piece, config)
+    # horizontal
+    for row in range(config.rows):
+        for col in range(config.columns-(config.inarow-1)):
+            window = list(next_grid[row, col:col+config.inarow])
+            if window.count(piece) == config.inarow:
+                return True
+    # vertical
+    for row in range(config.rows-(config.inarow-1)):
+        for col in range(config.columns):
+            window = list(next_grid[row:row+config.inarow, col])
+            if window.count(piece) == config.inarow:
+                return True
+    # positive diagonal
+    for row in range(config.rows-(config.inarow-1)):
+        for col in range(config.columns-(config.inarow-1)):
+            window = list(
+                next_grid[range(row, row+config.inarow), range(col, col+config.inarow)])
+            if window.count(piece) == config.inarow:
+                return True
+    # negative diagonal
+    for row in range(config.inarow-1, config.rows):
+        for col in range(config.columns-(config.inarow-1)):
+            window = list(
+                next_grid[range(row, row-config.inarow, -1), range(col, col+config.inarow)])
+            if window.count(piece) == config.inarow:
+                return True
+    return False
+
+# Agents
+def basic_agent(obs : SimpleNamespace, config : SimpleNamespace) -> int:
+    '''Returns column of winning move, else blocking move, else center-most move'''
     valid_moves = [col for col in range(config.columns) if obs.board[col] == 0]
     for col in valid_moves:
         # If we have a winning move, take it
@@ -75,27 +74,16 @@ def basic_agent(obs, config):
         # Else if they have a winning move, block it
         if check_winning_move(obs, config, col, 3-obs.mark):
             return col
+    return valid_moves[len(valid_moves)//2]     # Else middle-most move
 
-    # Else chose the middle-most valid move
-    return valid_moves[len(valid_moves)//2]     # Performs better than random.choice(valid_moves)
-
-# The minimax3 agent does 3 step lookahead; picking the move that looks like it will have the best result after the opponent
-# makes their best move and then the agent makes a subsequent best move
-def minimax3_agent(obs, config):
-    # Gets board at next step if agent drops piece in selected column
-    def drop_piece(grid, col, mark, config):
-        next_grid = grid.copy()
-        for row in range(config.rows-1, -1, -1):
-            if next_grid[row][col] == 0:
-                break
-        next_grid[row][col] = mark
-        return next_grid
+def minimax3_agent(obs : SimpleNamespace, config : SimpleNamespace) -> int:
+    '''Returns column with best 3 step lookahead results'''
 
     # Helper function for get_heuristic: checks if window satisfies heuristic conditions
     def check_window(window, num_discs, piece, config):
         return (window.count(piece) == num_discs and window.count(0) == config.inarow-num_discs)
 
-    # Helper function for get_heuristic: counts number of windows satisfying specified heuristic conditions
+    # Helper function for get_heuristic: counts # windows with num_discs
     def count_windows(grid, num_discs, piece, config):
         num_windows = 0
         # horizontal
@@ -113,26 +101,28 @@ def minimax3_agent(obs, config):
         # positive diagonal
         for row in range(config.rows-(config.inarow-1)):
             for col in range(config.columns-(config.inarow-1)):
-                window = list(grid[range(row, row+config.inarow), range(col, col+config.inarow)])
+                window = list(
+                    grid[range(row, row+config.inarow), range(col, col+config.inarow)])
                 if check_window(window, num_discs, piece, config):
                     num_windows += 1
         # negative diagonal
         for row in range(config.inarow-1, config.rows):
             for col in range(config.columns-(config.inarow-1)):
-                window = list(grid[range(row, row-config.inarow, -1), range(col, col+config.inarow)])
+                window = list(
+                    grid[range(row, row-config.inarow, -1), range(col, col+config.inarow)])
                 if check_window(window, num_discs, piece, config):
                     num_windows += 1
         return num_windows
-    
+
     # Helper function for minimax: calculates value of heuristic for grid
     def get_heuristic(grid, mark, config):
         num_threes = count_windows(grid, 3, mark, config)
         num_fours = count_windows(grid, 4, mark, config)
-        num_threes_opp = count_windows(grid, 3, mark%2+1, config)
-        num_fours_opp = count_windows(grid, 4, mark%2+1, config)
+        num_threes_opp = count_windows(grid, 3, mark % 2+1, config)
+        num_fours_opp = count_windows(grid, 4, mark % 2+1, config)
         score = num_threes - 1e2*num_threes_opp - 1e4*num_fours_opp + 1e6*num_fours
         return score
-    
+
     # Uses minimax to calculate value of dropping piece in selected column
     def score_move(grid, col, mark, config, nsteps):
         next_grid = drop_piece(grid, col, mark, config)
@@ -145,11 +135,11 @@ def minimax3_agent(obs, config):
 
     # Helper function for minimax: checks if game has ended
     def is_terminal_node(grid, config):
-        # Check for draw 
+        # Check for draw
         if list(grid[0, :]).count(0) == 0:
             return True
         # Check for win: horizontal, vertical, or diagonal
-        # horizontal 
+        # horizontal
         for row in range(config.rows):
             for col in range(config.columns-(config.inarow-1)):
                 window = list(grid[row, col:col+config.inarow])
@@ -164,13 +154,15 @@ def minimax3_agent(obs, config):
         # positive diagonal
         for row in range(config.rows-(config.inarow-1)):
             for col in range(config.columns-(config.inarow-1)):
-                window = list(grid[range(row, row+config.inarow), range(col, col+config.inarow)])
+                window = list(
+                    grid[range(row, row+config.inarow), range(col, col+config.inarow)])
                 if is_terminal_window(window, config):
                     return True
         # negative diagonal
         for row in range(config.inarow-1, config.rows):
             for col in range(config.columns-(config.inarow-1)):
-                window = list(grid[range(row, row-config.inarow, -1), range(col, col+config.inarow)])
+                window = list(
+                    grid[range(row, row-config.inarow, -1), range(col, col+config.inarow)])
                 if is_terminal_window(window, config):
                     return True
         return False
@@ -185,26 +177,30 @@ def minimax3_agent(obs, config):
             value = -np.Inf
             for col in valid_moves:
                 child = drop_piece(node, col, mark, config)
-                value = max(value, minimax(child, depth-1, False, mark, config))
+                value = max(value, minimax(
+                    child, depth-1, False, mark, config))
             return value
-        else:
-            value = np.Inf
-            for col in valid_moves:
-                child = drop_piece(node, col, mark%2+1, config)
-                value = min(value, minimax(child, depth-1, True, mark, config))
-            return value
-    
+
+        value = np.Inf
+        for col in valid_moves:
+            child = drop_piece(node, col, mark % 2+1, config)
+            value = min(value, minimax(child, depth-1, True, mark, config))
+        return value
+
     # Algo
-    N_STEPS = 3
+    n_steps = 3
     grid = np.asarray(obs.board).reshape(config.rows, config.columns)
     valid_moves = [col for col in range(config.columns) if obs.board[col] == 0]
     # Use the heuristic to assign a score to each possible board in the next step
-    scores = dict(zip(valid_moves, [score_move(grid, col, obs.mark, config, N_STEPS) for col in valid_moves]))
+    scores = dict(zip(valid_moves, [score_move(
+        grid, col, obs.mark, config, n_steps) for col in valid_moves]))
     # Get a list of columns (moves) that maximize the heuristic
-    max_cols = [key for key in scores.keys() if scores[key] == max(scores.values())]
-    # Select a column that maximizes the min possible score (if there is a tie, take the middle column)
-    return max_cols[len(max_cols)//2]   # Performs better than random.choice(max_cols)
+    max_cols = [move for move, score in scores.items() if score == max(scores.values())]
+    # Select a column that maximizes the min possible score. Take the middle column if tied
+    return max_cols[len(max_cols)//2]
 
+
+"""
 # The final agent has no preset rules - rather it uses reinforced learning after battling against the other agents
 # Requires pip install pandas, torch, gym, stable_baselines3 - which don't work on Python 3.11
 # TODO - this is skeletal code from the class; I've not yet tried and debugged it since I'm on Python 3.11 and haven't down-graded
@@ -214,7 +210,7 @@ def py_ver_ok():
 
 model_data = "sb3_model_data"   # It takes forever to train an sb3 model, so need a place to save it when done
 
-if False and py_ver_ok():
+if py_ver_ok():
     import gym
     from gym import spaces
     import torch as th
@@ -318,5 +314,4 @@ if False and py_ver_ok():
             return int(col)
         else:
             return random.choice([col for col in range(config.columns) if obs.board[int(col)] == 0])
-
-
+"""
